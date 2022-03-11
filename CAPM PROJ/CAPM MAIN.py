@@ -4,7 +4,6 @@ import codecs
 import lxml
 
 print("Welcome to Steve's CAPM model")
-print("### NOTE ### - Please input percentages as decimals (e.g., 2% = 0.02)")
 
 def scrapeBeta(ticker):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36'}
@@ -18,7 +17,7 @@ def scrapeBeta(ticker):
 
 
     # USE FOR TESTING CODE WITHOUT PINGING WEBSITE
-    # res = codecs.open("testSite.html", 'r', 'utf-8')
+    # res = codecs.open("pogfile.html", 'r', 'utf-8')
     # res = res.read()
 
     soup = bs.BeautifulSoup(res, 'lxml')
@@ -51,7 +50,7 @@ def scrapeRF():
     return RF
 
 def calcCAPM():
-    TCKR = input("What is the ticker of the stock you wish to evaluate?")
+    TCKR = input("What is the ticker of the stock you wish to evaluate? ")
     RF = scrapeRF()
     RM = 0.11
     BETA = scrapeBeta(TCKR)
