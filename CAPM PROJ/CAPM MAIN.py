@@ -2,6 +2,7 @@ import bs4 as bs
 import requests
 import codecs
 import lxml
+import xlwings as xw
 
 print("Welcome to Steve's CAPM model")
 
