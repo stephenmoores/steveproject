@@ -1,34 +1,100 @@
-import openpyxl
-import pandas as pd
 import bs4 as bs
 import requests
 import codecs
-import lxml
-import xlwings as xw
 from selenium import webdriver
-import datetime
 import time
-import re
-
 from datetime import date
 
 # False means switch to HTML code and True means switch to live website opener
 livewebsite = True
 
-
 def asktckr():
 
     if livewebsite == True:
-        print("Welcome to Steve's DCF generator")
+        print("Welcome to Steve's DCF generator, this code currently works with companies that are not: banks, insurance providers, companies who do not report in USD")
+        print('Input ticker in all caps for example: NVDA')
         TCKR = input("What is the ticker of the stock you would like to run a valuation on?  ")
 
     else:
         TCKR = 'NVDA'
-        print("LIVEWEBSITE = FALSE , RETURNING NVIDIA'S INFORMATION AS TEST")
+        print("LIVEWEBSITE = FALSE , RETURNING NVIDIA'S INFORMATION (as of February, 2022) AS TEST")
 
     return TCKR
 
-def scrapedates(TCKR):
+def askpga():
+
+    if livewebsite == True:
+        PGA = input("What is your assumed growth rate at perpetuity? (input as a decimal EX: 0.03 percent for 3%)  ")
+
+    else:
+        PGA = 0.03
+        print("LIVEWEBSITE = FALSE , USING 3.0% AS THE PERPETUITY GROWTH RATE")
+
+    return PGA
+
+def askEM():
+
+    if livewebsite == True:
+        EM = input("What is your assumed exit multiple? (more patches coming to improve this feature)  ")
+
+    else:
+        EM = 25
+        print("LIVEWEBSITE = FALSE , USING 25 AS THE EXIT MULTIPLE")
+
+    return EM
+
+def cleanscrape(var, DENOM, UNITS):
+
+    if DENOM == 'M' or DENOM == 'B' or DENOM == 'K' or DENOM == 'T':
+        var = var[:-1]
+        var = float(var)
+
+        if DENOM == 'T':
+            var = var * 1000000000000
+
+        if DENOM == 'B':
+            var = var * 1000000000
+
+        elif DENOM == 'M':
+            var = var * 1000000
+
+        elif DENOM == 'K':
+            var = var * 1000
+
+    if DENOM == ')':
+        # getting what units the number is displayed as in marketwatch
+        DENOM = var[-2]
+        # getting all characters between the letter and the parenthesis
+        var = var[1:-2]
+        # converting var to a float so we can work with it
+        var = float(var)
+        # this if statement only should be triggered in the case of a negative number therefore we convert the float to a negative float
+        var = var*-1
+
+        if DENOM == 'T':
+            var = var * 1000000000000
+
+        if DENOM == 'B':
+            var = var * 1000000000
+
+        if DENOM == 'M':
+            var = var * 1000000
+
+        if DENOM == 'K':
+            var = var * 1000
+
+    if DENOM == '-':
+        var = 0
+
+    if UNITS == 'All numbers in thousands':
+        var = var / 1000
+
+    elif UNITS == 'All numbers in millions':
+        var = var / 1000000
+
+    return var, DENOM
+
+def scrapedatesunits(TCKR):
 
     baseURL = 'https://finance.yahoo.com/quote/'
     mainURL = baseURL + TCKR + '/financials'
@@ -47,7 +113,7 @@ def scrapedates(TCKR):
 
     else:
         # USE FOR TESTING CODE WITHOUT PINGING WEBSITE
-        IShtml = codecs.open("IS.htm", 'r', 'utf-8')
+        IShtml = codecs.open("DATE.htm", 'r', 'utf-8')
         IShtml = IShtml.read()
 
     soup = bs.BeautifulSoup(IShtml, 'lxml')
@@ -63,100 +129,10 @@ def scrapedates(TCKR):
 
     return Y, Y1, Y2, currentdate, IShtml
 
-def scraperev(IShtml):
+def scraperev(TCKR, UNITS):
 
-    soup = bs.BeautifulSoup(IShtml, 'lxml')
-    revPull = soup.find_all("div", {'class':'Ta(c) Py(6px) Bxz(bb) BdB Bdc($seperatorColor) Miw(120px) Miw(100px)--pnclg D(tbc)'})
-    Rev = revPull[0].text
-    Rev2 = revPull[1].text
-
-    soup = bs.BeautifulSoup(IShtml, 'lxml')
-    revPull = soup.find_all("div", {'class':'Ta(c) Py(6px) Bxz(bb) BdB Bdc($seperatorColor) Miw(120px) Miw(100px)--pnclg Bgc($lv1BgColor) fi-row:h_Bgc($hoverBgColor) D(tbc)'})
-    Rev1 = revPull[1].text
-
-
-    return Rev, Rev1, Rev2, IShtml
-
-def scrapeEBIT(IShtml):
-
-    soup = bs.BeautifulSoup(IShtml, 'lxml')
-    EBITPull = soup.find_all("div", {'class':'Ta(c) Py(6px) Bxz(bb) BdB Bdc($seperatorColor) Miw(120px) Miw(100px)--pnclg D(tbc)'})
-    EBIT = EBITPull[44].text
-    EBIT2 = EBITPull[45].text
-
-    soup = bs.BeautifulSoup(IShtml, 'lxml')
-    EBITPull = soup.find_all("div", {'class':'Ta(c) Py(6px) Bxz(bb) BdB Bdc($seperatorColor) Miw(120px) Miw(100px)--pnclg Bgc($lv1BgColor) fi-row:h_Bgc($hoverBgColor) D(tbc)'})
-    EBIT1 = EBITPull[67].text
-
-
-    return EBIT, EBIT1, EBIT2, IShtml
-
-def scrapedep(IShtml):
-
-    soup = bs.BeautifulSoup(IShtml, 'lxml')
-    depPull = soup.find_all("div", {'class':'Ta(c) Py(6px) Bxz(bb) BdB Bdc($seperatorColor) Miw(120px) Miw(100px)--pnclg D(tbc)'})
-    dep = depPull[50].text
-    dep2 = depPull[51].text
-
-    soup = bs.BeautifulSoup(IShtml, 'lxml')
-    depPull = soup.find_all("div", {'class':'Ta(c) Py(6px) Bxz(bb) BdB Bdc($seperatorColor) Miw(120px) Miw(100px)--pnclg Bgc($lv1BgColor) fi-row:h_Bgc($hoverBgColor) D(tbc)'})
-    dep1 = depPull[76].text
-
-    return dep, dep1, dep2, IShtml
-
-def EBITDACALC(dep, dep1, dep2, EBIT, EBIT1, EBIT2):
-    dep = dep.replace(",", "")
-    dep1 = dep1.replace(",", "")
-    dep2 = dep2.replace(",", "")
-
-    EBIT = EBIT.replace(",", "")
-    EBIT1 = EBIT1.replace(",", "")
-    EBIT2 = EBIT2.replace(",", "")
-
-    dep = float(dep)
-    dep1 = float(dep1)
-    dep2 = float(dep2)
-
-    EBIT = float(EBIT)
-    EBIT1 = float(EBIT1)
-    EBIT2 = float(EBIT2)
-
-    EBITDA = EBIT + dep
-    EBITDA1 = EBIT1 + dep1
-    EBITDA2 = EBIT2 + dep2
-
-    return EBITDA, EBITDA1, EBITDA2
-
-def scrapepretax(IShtml):
-
-    soup = bs.BeautifulSoup(IShtml, 'lxml')
-    pretaxPull = soup.find_all("div", {'class':'Ta(c) Py(6px) Bxz(bb) BdB Bdc($seperatorColor) Miw(120px) Miw(100px)--pnclg D(tbc)'})
-    pretax = pretaxPull[14].text
-    pretax2 = pretaxPull[15].text
-
-    soup = bs.BeautifulSoup(IShtml, 'lxml')
-    pretaxPull = soup.find_all("div", {'class':'Ta(c) Py(6px) Bxz(bb) BdB Bdc($seperatorColor) Miw(120px) Miw(100px)--pnclg Bgc($lv1BgColor) fi-row:h_Bgc($hoverBgColor) D(tbc)'})
-    pretax1 = pretaxPull[22].text
-
-    return pretax, pretax1, pretax2, IShtml
-
-def scrapetax(IShtml):
-
-    soup = bs.BeautifulSoup(IShtml, 'lxml')
-    taxPull = soup.find_all("div", {'class': 'Ta(c) Py(6px) Bxz(bb) BdB Bdc($seperatorColor) Miw(120px) Miw(100px)--pnclg D(tbc)'})
-    tax = taxPull[16].text
-    tax2 = taxPull[17].text
-
-    soup = bs.BeautifulSoup(IShtml, 'lxml')
-    taxPull = soup.find_all("div", {'class': 'Ta(c) Py(6px) Bxz(bb) BdB Bdc($seperatorColor) Miw(120px) Miw(100px)--pnclg Bgc($lv1BgColor) fi-row:h_Bgc($hoverBgColor) D(tbc)'})
-    tax1 = taxPull[25].text
-
-    return tax, tax1, tax2, IShtml
-
-def scrapeCAPEX(TCKR):
-
-    baseURL = 'https://finance.yahoo.com/quote/'
-    mainURL = baseURL + TCKR + '/cash-flow'
+    baseURL = 'https://www.marketwatch.com/investing/stock/'
+    mainURL = baseURL + TCKR + '/financials'
     print(mainURL)
 
     if livewebsite == True:
@@ -166,31 +142,182 @@ def scrapeCAPEX(TCKR):
         # return the main page
         driver.get(mainURL)
         # saving the HTML script into the python application just like beautiful soup
-        CFShtml = driver.execute_script('return document.body.innerHTML;')
+        MWIShtml = driver.execute_script('return document.body.innerHTML;')
         # closing the driver
         driver.close()
 
     else:
         # USE FOR TESTING CODE WITHOUT PINGING WEBSITE
-        CFShtml = codecs.open("CFS.htm", 'r', 'utf-8')
-        CFShtml = CFShtml.read()
+        MWIShtml = codecs.open("MWIS.htm", 'r', 'utf-8')
+        MWIShtml = MWIShtml.read()
 
-    soup = bs.BeautifulSoup(CFShtml, 'lxml')
+    soup = bs.BeautifulSoup(MWIShtml, 'lxml')
+    RevPull = soup.find_all('div', {'class': 'cell__content'})
+    Rev = RevPull[14].text
+    DENOM = Rev[-1]
+    # CLEANING THE DATA
+    var = Rev
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    Rev = var
 
-    capexPull = soup.find_all("div", {'class':'Ta(c) Py(6px) Bxz(bb) BdB Bdc($seperatorColor) Miw(120px) Miw(100px)--pnclg D(tbc)'})
-    capex = capexPull[12].text
-    capex2 = capexPull[13].text
+    soup = bs.BeautifulSoup(MWIShtml, 'lxml')
+    Rev1Pull = soup.find_all('div', {'class': 'cell__content'})
+    Rev1 = Rev1Pull[13].text
+    DENOM = Rev1[-1]
+    # CLEANING THE DATA
+    var = Rev1
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    Rev1 = var
 
-    soup = bs.BeautifulSoup(CFShtml, 'lxml')
-    capexPull = soup.find_all("div", {'class':'Ta(c) Py(6px) Bxz(bb) BdB Bdc($seperatorColor) Miw(120px) Miw(100px)--pnclg Bgc($lv1BgColor) fi-row:h_Bgc($hoverBgColor) D(tbc)'})
-    capex1 = capexPull[19].text
 
-    return capex, capex1, capex2, CFShtml
+    soup = bs.BeautifulSoup(MWIShtml, 'lxml')
+    Rev2Pull = soup.find_all('div', {'class': 'cell__content'})
+    Rev2 = Rev2Pull[12].text
+    DENOM = Rev2[-1]
+    # CLEANING THE DATA
+    var = Rev2
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    Rev2 = var
 
-def scrapeNWC(TCKR):
+    return Rev, Rev1, Rev2, MWIShtml, UNITS
 
-    baseURL = 'https://finance.yahoo.com/quote/'
-    mainURL = baseURL + TCKR + '/balance-sheet'
+def scrapeEBITDA(MWIShtml, UNITS):
+
+    soup = bs.BeautifulSoup(MWIShtml, 'lxml')
+    EBITDAPull = soup.find_all('div', {'class': 'cell__content'})
+    EBITDA = EBITDAPull[446].text
+    DENOM = EBITDA[-1]
+
+    var = EBITDA
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    EBITDA = var
+
+    soup = bs.BeautifulSoup(MWIShtml, 'lxml')
+    EBITDA1Pull = soup.find_all('div', {'class': 'cell__content'})
+    EBITDA1 = EBITDA1Pull[445].text
+    DENOM = EBITDA1[-1]
+
+    var = EBITDA1
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    EBITDA1 = var
+
+    soup = bs.BeautifulSoup(MWIShtml, 'lxml')
+    EBITDA2Pull = soup.find_all('div', {'class': 'cell__content'})
+    EBITDA2 = EBITDA2Pull[444].text
+    DENOM = EBITDA2[-1]
+
+    var = EBITDA2
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    EBITDA2 = var
+
+
+    return EBITDA, EBITDA1, EBITDA2, MWIShtml, UNITS
+
+def scrapedepna(MWIShtml, UNITS):
+
+    soup = bs.BeautifulSoup(MWIShtml, 'lxml')
+    depnaPull = soup.find_all('div', {'class': 'cell__content'})
+    depna = depnaPull[54].text
+    DENOM = depna[-1]
+
+    var = depna
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    depna = var
+
+    soup = bs.BeautifulSoup(MWIShtml, 'lxml')
+    depna1Pull = soup.find_all('div', {'class': 'cell__content'})
+    depna1 = depna1Pull[53].text
+    DENOM = depna1[-1]
+
+    var = depna1
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    depna1 = var
+
+    soup = bs.BeautifulSoup(MWIShtml, 'lxml')
+    depna2Pull = soup.find_all('div', {'class': 'cell__content'})
+    depna2 = depna2Pull[52].text
+    DENOM = depna2[-1]
+
+    var = depna2
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    depna2 = var
+
+    return depna, depna1, depna2, MWIShtml, UNITS
+
+def calcEBIT(EBITDA, EBITDA1, EBITDA2, depna, depna1, depna2):
+
+    EBIT = EBITDA - depna
+    EBIT1 = EBITDA1 - depna1
+    EBIT2 = EBITDA2 - depna2
+
+    return EBIT, EBIT1, EBIT2
+
+def scrapepretax(MWIShtml, UNITS):
+
+    soup = bs.BeautifulSoup(MWIShtml, 'lxml')
+    pretaxPull = soup.find_all('div', {'class': 'cell__content'})
+    pretax = pretaxPull[214].text
+    DENOM = pretax[-1]
+
+    var = pretax
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    pretax = var
+
+    soup = bs.BeautifulSoup(MWIShtml, 'lxml')
+    pretax1Pull = soup.find_all('div', {'class': 'cell__content'})
+    pretax1 = pretax1Pull[213].text
+    DENOM = pretax1[-1]
+
+    var = pretax1
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    pretax1 = var
+
+    soup = bs.BeautifulSoup(MWIShtml, 'lxml')
+    pretax2Pull = soup.find_all('div', {'class': 'cell__content'})
+    pretax2 = pretax2Pull[212].text
+    DENOM = pretax2[-1]
+
+    var = pretax2
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    pretax2 = var
+
+    return pretax, pretax1, pretax2, MWIShtml, UNITS
+
+def scrapetax(MWIShtml, UNITS):
+
+    soup = bs.BeautifulSoup(MWIShtml, 'lxml')
+    taxPull = soup.find_all('div', {'class': 'cell__content'})
+    tax = taxPull[238].text
+    DENOM = tax[-1]
+
+    var = tax
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    tax = var
+
+    soup = bs.BeautifulSoup(MWIShtml, 'lxml')
+    tax1Pull = soup.find_all('div', {'class': 'cell__content'})
+    tax1 = tax1Pull[237].text
+    DENOM = tax1[-1]
+
+    var = tax1
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    tax1 = var
+
+    soup = bs.BeautifulSoup(MWIShtml, 'lxml')
+    tax2Pull = soup.find_all('div', {'class': 'cell__content'})
+    tax2 = tax2Pull[236].text
+    DENOM = tax2[-1]
+
+    var = tax2
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    tax2 = var
+
+    return tax, tax1, tax2, MWIShtml, UNITS
+
+def scrapeCAPEX(TCKR, UNITS):
+
+    baseURL = 'https://www.marketwatch.com/investing/stock/'
+    mainURL = baseURL + TCKR + '/financials/cash-flow'
     print(mainURL)
 
     if livewebsite == True:
@@ -200,32 +327,132 @@ def scrapeNWC(TCKR):
         # return the main page
         driver.get(mainURL)
         # saving the HTML script into the python application just like beautiful soup
-        BShtml = driver.execute_script('return document.body.innerHTML;')
+        MWCFShtml = driver.execute_script('return document.body.innerHTML;')
         # closing the driver
         driver.close()
 
     else:
         # USE FOR TESTING CODE WITHOUT PINGING WEBSITE
-        BShtml = codecs.open("BS.htm", 'r', 'utf-8')
-        BShtml = BShtml.read()
+        MWCFShtml = codecs.open("MWCFS.htm", 'r', 'utf-8')
+        MWCFShtml = MWCFShtml.read()
 
-    soup = bs.BeautifulSoup(BShtml, 'lxml')
+    soup = bs.BeautifulSoup(MWCFShtml, 'lxml')
+    capexPull = soup.find_all('div', {'class': 'cell__content'})
+    capex = capexPull[166].text
+    DENOM = capex[-1]
 
-    NWCPull = soup.find_all("div", {'class':'Ta(c) Py(6px) Bxz(bb) BdB Bdc($seperatorColor) Miw(120px) Miw(100px)--pnclg D(tbc)'})
-    NWC = NWCPull[14].text
-    NWC2 = NWCPull[15].text
+    var = capex
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    capex = var
 
-    soup = bs.BeautifulSoup(BShtml, 'lxml')
-    NWCPull = soup.find_all("div", {'class':'Ta(c) Py(6px) Bxz(bb) BdB Bdc($seperatorColor) Miw(120px) Miw(100px)--pnclg Bgc($lv1BgColor) fi-row:h_Bgc($hoverBgColor) D(tbc)'})
-    NWC1 = NWCPull[14].text
+    soup = bs.BeautifulSoup(MWCFShtml, 'lxml')
+    capex1Pull = soup.find_all('div', {'class': 'cell__content'})
+    capex1 = capex1Pull[165].text
+    DENOM = capex1[-1]
 
+    var = capex1
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    capex1 = var
 
-    return NWC, NWC1, NWC2, BShtml
+    soup = bs.BeautifulSoup(MWCFShtml, 'lxml')
+    capex2Pull = soup.find_all('div', {'class': 'cell__content'})
+    capex2 = capex2Pull[164].text
+    DENOM = capex2[-1]
 
-def imnotacrook():
+    var = capex2
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    capex2 = var
+
+    return capex, capex1, capex2, MWCFShtml
+
+def scrapeNWC(TCKR, UNITS):
+
+    baseURL = 'https://www.marketwatch.com/investing/stock/'
+    mainURL = baseURL + TCKR + '/financials/balance-sheet'
+    print(mainURL)
+
+    if livewebsite == True:
+
+        # TURN BACK ON WHEN READY FOR PRODUCTION CODE
+        driver = webdriver.Chrome('C:/Users/Stephen/Downloads/SPRING SEMESTER 2021-2022/PYTHON/GitHub/steveproject/PANDAS PROJ/chromedriver_win32/chromedriver.exe')
+        # return the main page
+        driver.get(mainURL)
+        # saving the HTML script into the python application just like beautiful soup
+        MWBShtml = driver.execute_script('return document.body.innerHTML;')
+        # closing the driver
+        driver.close()
+
+    else:
+        # USE FOR TESTING CODE WITHOUT PINGING WEBSITE
+        MWBShtml = codecs.open("MWBS.htm", 'r', 'utf-8')
+        MWBShtml = MWBShtml.read()
+
+    soup = bs.BeautifulSoup(MWBShtml, 'lxml')
+    CAPull = soup.find_all('div', {'class': 'cell__content'})
+    CA = CAPull[166].text
+    DENOM = CA[-1]
+
+    var = CA
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    CA = var
+
+    soup = bs.BeautifulSoup(MWBShtml, 'lxml')
+    CA1Pull = soup.find_all('div', {'class': 'cell__content'})
+    CA1 = CA1Pull[165].text
+    DENOM = CA1[-1]
+
+    var = CA1
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    CA1 = var
+
+    soup = bs.BeautifulSoup(MWBShtml, 'lxml')
+    CA2Pull = soup.find_all('div', {'class': 'cell__content'})
+    CA2 = CA2Pull[164].text
+    DENOM = CA2[-1]
+
+    var = CA2
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    CA2 = var
+
+    soup = bs.BeautifulSoup(MWBShtml, 'lxml')
+    CLPull = soup.find_all('div', {'class': 'cell__content'})
+    CL = CLPull[390].text
+    DENOM = CL[-1]
+
+    var = CL
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    CL = var
+
+    soup = bs.BeautifulSoup(MWBShtml, 'lxml')
+    CL1Pull = soup.find_all('div', {'class': 'cell__content'})
+    CL1 = CL1Pull[389].text
+    DENOM = CL1[-1]
+
+    var = CL1
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    CL1 = var
+
+    soup = bs.BeautifulSoup(MWBShtml, 'lxml')
+    CL2Pull = soup.find_all('div', {'class': 'cell__content'})
+    CL2 = CL2Pull[388].text
+    DENOM = CL2[-1]
+
+    var = CL2
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    CL2 = var
+
+    print(CA, CL)
+    NWC = CA - CL
+    NWC1 = CA1 - CL1
+    NWC2 = CA2 - CL2
+
+    return NWC, NWC1, NWC2, MWBShtml
+
+def wait():
 
     if livewebsite == True:
         time.sleep(3)
+        print('three second delay to maintain low frequency of pings')
 
     else:
         print('live website is not in use: no delay')
@@ -263,7 +490,7 @@ def scrapeRF():
 
     return RF
 
-def scrapeHOME(TCKR):
+def scrapeHOME(TCKR, UNITS):
 
     baseURL = 'https://finance.yahoo.com/quote/'
     mainURL = baseURL + TCKR
@@ -296,63 +523,155 @@ def scrapeHOME(TCKR):
     soup = bs.BeautifulSoup(HOMEhtml, 'lxml')
     PRICEPull = soup.find_all("fin-streamer", {'class':'Fw(b) Fz(36px) Mb(-4px) D(ib)'})
     PRICE = PRICEPull[0].text
+    PRICE = float(PRICE.replace(',', ''))
 
-    return NAME, PRICE, BETA, HOMEhtml
+    soup = bs.BeautifulSoup(HOMEhtml, 'lxml')
+    CAPPull = soup.find_all("td", {'data-test':'MARKET_CAP-value'})
+    CAP = CAPPull[0].text
+    DENOM = CAP[-1]
 
-def scrapeCOD(IShtml, BShtml):
+    var = CAP
 
-    soup = bs.BeautifulSoup(IShtml, 'lxml')
-    intPull = soup.find_all("div", {'class':'Ta(c) Py(6px) Bxz(bb) BdB Bdc($seperatorColor) Miw(120px) Miw(100px)--pnclg D(tbc)'})
-    int = intPull[40].text
+    if DENOM == 'M' or DENOM == 'B' or DENOM == 'K' or DENOM == 'T':
+        var = var[:-1]
+        var = float(var)
 
-    soup = bs.BeautifulSoup(BShtml, 'lxml')
-    debtPull = soup.find_all("div", {'class':'Ta(c) Py(6px) Bxz(bb) BdB Bdc($seperatorColor) Miw(120px) Miw(100px)--pnclg D(tbc)'})
-    TD = debtPull[20].text
+        if DENOM == 'T':
+            var = var * 1000000000000
 
-    int = int.replace(",", "")
-    TD = TD.replace(",", "")
+        elif DENOM == 'B':
+            var = var * 1000000000
 
-    int = float(int)
-    TD = float(TD)
+        elif DENOM == 'M':
+            var = var * 1000000
 
-    COD = int/TD
+        elif DENOM == 'K':
+            var = var * 1000
 
-    return int, TD, COD, IShtml, BShtml
+    if UNITS == 'All numbers in thousands':
+        var = var / 1000
+
+    elif UNITS == 'All numbers in millions':
+        var = var / 1000000
+
+    CAP = var
+
+    SHARES = CAP/PRICE
+
+    return NAME, PRICE, BETA, CAP, SHARES, HOMEhtml
+
+def scrapeCOD(MWIShtml, MWBShtml, UNITS):
+
+    soup = bs.BeautifulSoup(MWIShtml, 'lxml')
+    interestPull = soup.find_all('div', {'class': 'cell__content'})
+    interest = interestPull[182].text
+    DENOM = interest[-1]
+
+    var = interest
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    interest = var
+
+    soup = bs.BeautifulSoup(MWBShtml, 'lxml')
+    STDPull = soup.find_all('div', {'class': 'cell__content'})
+    STD = STDPull[318].text
+    DENOM = STD[-1]
+
+    var = STD
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    STD = var
+
+    soup = bs.BeautifulSoup(MWBShtml, 'lxml')
+    LTDPull = soup.find_all('div', {'class': 'cell__content'})
+    LTD = LTDPull[398].text
+    DENOM = LTD[-1]
+
+    var = LTD
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    LTD = var
+
+    # ST AND LTD ARE SHORT TERM AND LONG TERM DEBT THEIR TOTAL MAKES TOTAL DEBT
+
+    TD = STD + LTD
+    COD = interest/TD
+
+    return interest, TD, COD, MWIShtml, MWBShtml
+
+def scrapeCCEandSTLandLTL(MWBShtml, UNITS):
+
+
+    soup = bs.BeautifulSoup(MWBShtml, 'lxml')
+    CCEPull = soup.find_all('div', {'class': 'cell__content'})
+    CCE = CCEPull[14].text
+    DENOM = CCE[-1]
+
+    var = CCE
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    CCE = var
+
+    soup = bs.BeautifulSoup(MWBShtml, 'lxml')
+    STLPull = soup.find_all('div', {'class': 'cell__content'})
+    STL = STLPull[390].text
+    DENOM = STL[-1]
+
+    var = STL
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    STL = var
+
+    soup = bs.BeautifulSoup(MWBShtml, 'lxml')
+    TLPull = soup.find_all('div', {'class': 'cell__content'})
+    TL = TLPull[494].text
+    DENOM = TL[-1]
+
+    var = TL
+    var, DENOM = cleanscrape(var, DENOM, UNITS)
+    TL = var
+
+    LTL = TL - STL
+
+    return CCE, STL, LTL, UNITS
 
 def executescript():
     TCKR = asktckr()
-    Y, Y1, Y2, currentdate, IShtml = scrapedates(TCKR)
-    imnotacrook()
-    capex, capex1, capex2, CFShtml = scrapeCAPEX(TCKR)
-    imnotacrook()
-    NWC, NWC1, NWC2, BShtml = scrapeNWC(TCKR)
-    imnotacrook()
-    NAME, PRICE, BETA, HOMEhtml = scrapeHOME(TCKR)
-    imnotacrook()
-    RF = scrapeRF()
-    Rev, Rev1, Rev2, IShtml = scraperev(IShtml)
-    EBIT, EBIT1, EBIT2, IShtml = scrapeEBIT(IShtml)
-    dep, dep1, dep2, IShtml = scrapedep(IShtml)
-    EBITDA, EBITDA1, EBITDA2 = EBITDACALC(dep, dep1, dep2, EBIT, EBIT1, EBIT2)
-    pretax, pretax1, pretax2, IShtml = scrapepretax(IShtml)
-    tax, tax1, tax2, IShtml = scrapetax(IShtml)
+    PGA = askpga()
+    EM = askEM()
+    Y, Y1, Y2, currentdate, IShtml = scrapedatesunits(TCKR)
     UNITS = scrapeunits(IShtml)
-    int, TD, COD, IShtml, BShtml = scrapeCOD(IShtml, BShtml)
+    wait()
+    Rev, Rev1, Rev2, MWIShtml, UNITS = scraperev(TCKR, UNITS)
+    wait()
+    capex, capex1, capex2, MWCFShtml = scrapeCAPEX(TCKR, UNITS)
+    wait()
+    NWC, NWC1, NWC2, MWBShtml = scrapeNWC(TCKR, UNITS)
+    wait()
+    NAME, PRICE, BETA, CAP, SHARES, HOMEhtml = scrapeHOME(TCKR, UNITS)
+    wait()
+    RF = scrapeRF()
+    CCE, STL, LTL, UNITS = scrapeCCEandSTLandLTL(MWBShtml, UNITS)
+    EBITDA, EBITDA1, EBITDA2, MWIShtml, UNITS = scrapeEBITDA(MWIShtml, UNITS)
+    depna, depna1, depna2, MWIShtml, UNITS = scrapedepna(MWIShtml, UNITS)
+    EBIT, EBIT1, EBIT2 = calcEBIT(EBITDA, EBITDA1, EBITDA2, depna, depna1, depna2)
+    pretax, pretax1, pretax2, MWIShtml, UNITS = scrapepretax(MWIShtml, UNITS)
+    tax, tax1, tax2, MWIShtml, UNITS = scrapetax(MWIShtml, UNITS)
+    interest, TD, COD, MWIShtml, MWBShtml = scrapeCOD(MWIShtml, MWBShtml, UNITS)
 
-    # print(Y, Y1, Y2, currentdate)
-    # print(Rev, Rev1, Rev2)
-    # print(EBIT, EBIT1, EBIT2)
-    # print(dep, dep1, dep2)
-    # print(EBITDA, EBITDA1, EBITDA2)
-    # print(pretax, pretax1, pretax2)
-    # print(tax, tax1, tax2)
-    # print(capex, capex1, capex2)
-    # print(NWC, NWC1, NWC2)
-    # print(UNITS)
-    # print(RF)
-    # print(NAME, PRICE, BETA)
-    # print(int, TD, COD)
+    print(Y, Y1, Y2, currentdate)
+    print(Rev, Rev1, Rev2)
+    print(EBIT, EBIT1, EBIT2)
+    print(depna, depna1, depna2)
+    print(EBITDA, EBITDA1, EBITDA2)
+    print(pretax, pretax1, pretax2)
+    print(tax, tax1, tax2)
+    print(capex, capex1, capex2)
+    print(NWC, NWC1, NWC2)
+    print(UNITS)
+    print(RF)
+    print(NAME, PRICE, BETA)
+    print(interest, TD, COD)
+    print(CCE, STL, LTL)
+    print(PGA)
+    print(EM)
     return
 
 if __name__ == "__main__":
     executescript()
+
