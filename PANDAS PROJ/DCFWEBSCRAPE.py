@@ -441,7 +441,6 @@ def scrapeNWC(TCKR, UNITS):
     var, DENOM = cleanscrape(var, DENOM, UNITS)
     CL2 = var
 
-    print(CA, CL)
     NWC = CA - CL
     NWC1 = CA1 - CL1
     NWC2 = CA2 - CL2
@@ -472,6 +471,7 @@ def scrapeRF():
     ticker = '%5ETNX'
     baseURL = 'https://finance.yahoo.com/quote/'
     mainURL = baseURL + ticker
+    print(mainURL)
 
     if livewebsite == True:
         # TURN BACK ON WHEN READY FOR PRODUCTION CODE
