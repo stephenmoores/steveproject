@@ -1,90 +1,73 @@
-import openpyxl
-import pandas as pd
 import bs4 as bs
 import requests
 import codecs
-import lxml
-import xlwings as xw
 from selenium import webdriver
-from selenium import webdriver
-from bs4 import BeautifulSoup
-import pandas as pd
-import datetime
 import time
-import re
-import webbrowser
+from datetime import date
+from DCFWEBSCRAPE import wait
+from DCFWEBSCRAPE import asktckr
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 livewebsite = True
 
-def asktckr():
+def scrapecomp1(TCKR):
 
-    if livewebsite == True:
-        print("Welcome to Steve's DCF generator")
-        TCKR = input("What is the ticker of the stock you would like to run a valuation on?  ")
-
-    else:
-        TCKR = 'NVDA'
-        print("LIVEWEBSITE = FALSE , RETURNING NVIDIA'S INFORMATION AS TEST")
-
-    return TCKR
-
-def scrapeCCE(TCKR):
-    baseURL = 'https://www.marketwatch.com/investing/stock/'
-    mainURL = baseURL + TCKR + '/financials/balance-sheet'
-    print(mainURL)
+    MNURL = 'https://www.marketwatch.com/investing/stock/' + TCKR
 
     if livewebsite == True:
 
         # TURN BACK ON WHEN READY FOR PRODUCTION CODE
         driver = webdriver.Chrome('C:/Users/Stephen/Downloads/SPRING SEMESTER 2021-2022/PYTHON/GitHub/steveproject/PANDAS PROJ/chromedriver_win32/chromedriver.exe')
         # return the main page
-        driver.get(mainURL)
+        driver.get(MNURL)
+        # clicking the first comp
+        count = 2
+        count = str(count)
+        XPATH = '//*[@id="maincontent"]/div[7]/div[3]/div/div/table/tbody/tr[' + count + ']/td[1]/a'
+        button = driver.find_element(By.XPATH, XPATH)
+        driver.execute_script("arguments[0].click();", button)
+        # wait
+        wait()
         # saving the HTML script into the python application just like beautiful soup
-        BShtml = driver.execute_script('return document.body.innerHTML;')
+        MWHOME = driver.execute_script('return document.body.innerHTML;')
         # closing the driver
         driver.close()
 
     else:
         # USE FOR TESTING CODE WITHOUT PINGING WEBSITE
-        BShtml = codecs.open("MWBS.htm", 'r', 'utf-8')
-        BShtml = BShtml.read()
+        MWHOME = codecs.open("MWHOME.htm", 'r', 'utf-8')
+        MWHOME = MWHOME.read()
 
-    soup = bs.BeautifulSoup(BShtml, 'lxml')
-    CCEPull = soup.find_all('div', {'class': 'cell__content'})
-    CCE = CCEPull[14].text
+    return MWHOME
 
-    DENOM = CCE[-1]
-    CCE = CCE[:-1]
-    CCE = float(CCE)
+def getpe(MWHOME):
 
-    # getting the cash and cash equivalents to a dollar figure that we can later divide by the units to get useable data
+    soup = bs.BeautifulSoup(MWHOME, 'lxml')
+    Pull = soup.find_all("span", {'class':'primary'})
+    PE = Pull[14].text
 
-    if DENOM == 'B':
-        CCE = CCE*1000000000
+    return PE
 
-    elif DENOM == 'M':
-        CCE = CCE*1000000
+def repeat_collect(MWHOME, dict2, TCKR):
 
-    elif DENOM == 'K':
-        CCE = CCE*1000
+    try:
+        for _ in range(50):
+            TICKER, count = scrapecomp1()
+            dict2.update({count : TICKER})
 
-    else:
-        print('unit error')
+    except IndexError:
+        print("table end")
 
-    return BShtml, CCE, DENOM
-
-
-
-def test():
-
-    return
+    return dict2
 
 def executescript():
     TCKR = asktckr()
-    MWBShtml, CCE, DENOM = scrapeCCE(TCKR)
-
-    print(CCE)
-    print(DENOM)
+    repeat_collect(MWHOME, dict2, TCKR)
+    PE = getpe(MWHOME)
+    print(PE)
     return
 
 executescript()

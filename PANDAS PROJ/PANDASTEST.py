@@ -20,11 +20,7 @@ from DCFWEBSCRAPE import scrapeCCEandSTLandLTL
 from DCFWEBSCRAPE import calcEBIT
 from DCFWEBSCRAPE import scrapeEBITDA
 
-
-from datetime import date
-
-from DCFWEBSCRAPE import executescript
-
+# DCFWEBSCRAPE
 TCKR = asktckr()
 PGA = askpga()
 EM = askEM()
@@ -73,5 +69,5 @@ df = pd.DataFrame({ Y :{'Revenue': Rev, 'EBITDA': EBITDA, 'EBIT': EBIT,
 wb = xw.Book('RECDCF.xlsx')
 sheet = wb.sheets['DATA']
 sheet.range('A1').value = df
+print('DCF data successfully exported into Excel File')
 
-print('Data successfully exported into Excel File')

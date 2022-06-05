@@ -1,6 +1,7 @@
 import bs4 as bs
 import codecs
 from selenium import webdriver
+from selenium.webdriver.common.by import By
 
    # you can alter the URL it uses to scrape in the "askURL" function
    # you can alter the path it takes in BS4 in the "collect" function
@@ -9,7 +10,7 @@ livewebsite = True
 
 def askurl():
 
-    mainURL = "https://www.marketwatch.com/investing/stock/nvda/financials"
+    mainURL = "https://www.marketwatch.com/investing/stock/nvda"
 
     return mainURL
 
@@ -39,12 +40,12 @@ def collect(html):
     count = collect.counter
 
     soup = bs.BeautifulSoup(html, 'lxml')
-    Pull = soup.find_all("div", {'class':'cell__content'})
+    Pull = soup.find_all("a", {'class':'link'})
     var = Pull[count].text
 
     print(f"{var} - {collect.counter}")
 
-    return
+    return var
 
 def repeat_collect(html):
 
@@ -61,7 +62,7 @@ def executescript():
 
     mainURL = askurl()
     html = returnhtml(mainURL)
-    collect.counter = -1
+    collect.counter = 206
     repeat_collect(html)
 
     return
