@@ -176,7 +176,7 @@ def collectMAIN(TCKR):
 def repeat_collect(TCKR, tckrdict, PElist, PBlist, PSlist, QUICKlist, CURRENTlist, DTOElist, ROAlist, ROElist, ROIlist, GMlist):
 
     try:
-        for _ in range(2):
+        for _ in range(10):
             MWHOME, count = scrapecomp(TCKR)
             country = getcountry(MWHOME)
 

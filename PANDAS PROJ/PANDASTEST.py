@@ -92,7 +92,6 @@ print('DCF data successfully exported into Excel File')
 # -------------------COMPSAUTO-------------------
 tckrdict, PElist, PBlist, PSlist, QUICKlist, CURRENTlist, DTOElist, ROAlist, ROElist, ROIlist, GMlist = COMPSAUTO.createdicts()
 COMPSAUTO.scrapecomp.counter = 0
-TCKR = asktckr3()
 tckrdict, PElist, PBlist, PSlist, QUICKlist, CURRENTlist, DTOElist, ROAlist, ROElist, ROIlist, GMlist = COMPSAUTO.repeat_collect(
     TCKR, tckrdict, PElist, PBlist, PSlist, QUICKlist, CURRENTlist, DTOElist, ROAlist, ROElist, ROIlist, GMlist)
 MAINHOME, listMAIN = COMPSAUTO.collectMAIN(TCKR)
