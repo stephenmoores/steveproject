@@ -450,7 +450,7 @@ def scrapeNWC(TCKR, UNITS):
 def wait():
 
     if livewebsite == True:
-        time.sleep(3)
+        time.sleep(6)
         print('three second delay to maintain low frequency of pings')
 
     else:
@@ -654,22 +654,6 @@ def executescript():
     tax, tax1, tax2, MWIShtml, UNITS = scrapetax(MWIShtml, UNITS)
     interest, TD, COD, MWIShtml, MWBShtml = scrapeCOD(MWIShtml, MWBShtml, UNITS)
 
-    print(Y, Y1, Y2, currentdate)
-    print(Rev, Rev1, Rev2)
-    print(EBIT, EBIT1, EBIT2)
-    print(depna, depna1, depna2)
-    print(EBITDA, EBITDA1, EBITDA2)
-    print(pretax, pretax1, pretax2)
-    print(tax, tax1, tax2)
-    print(capex, capex1, capex2)
-    print(NWC, NWC1, NWC2)
-    print(UNITS)
-    print(RF)
-    print(NAME, PRICE, BETA)
-    print(interest, TD, COD)
-    print(CCE, STL, LTL)
-    print(PGA)
-    print(EM)
     return
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ livewebsite = True
 
 def askurl():
 
-    mainURL = "https://www.marketwatch.com/investing/stock/nvda"
+    mainURL = "https://finviz.com/quote.ashx?t=nvda"
 
     return mainURL
 
@@ -40,7 +40,7 @@ def collect(html):
     count = collect.counter
 
     soup = bs.BeautifulSoup(html, 'lxml')
-    Pull = soup.find_all("a", {'class':'link'})
+    Pull = soup.find_all("td", {'class':'snapshot-td2'})
     var = Pull[count].text
 
     print(f"{var} - {collect.counter}")
@@ -62,7 +62,7 @@ def executescript():
 
     mainURL = askurl()
     html = returnhtml(mainURL)
-    collect.counter = 206
+    collect.counter = -1
     repeat_collect(html)
 
     return
